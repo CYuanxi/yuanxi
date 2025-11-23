@@ -111,7 +111,7 @@ class Terrain:
             choice = np.random.uniform(0, 1)
             # difficulty = np.random.choice([0.5, 0.75, 0.9])
             difficulty = np.random.uniform(-0.2, 1.2)
-            terrain = self.make_terrain(choice, difficulty)
+            terrain, flag = self.make_terrain(choice, difficulty)
             self.add_terrain_to_map(terrain, i, j)
         
     def curiculum(self, random=False, max_difficulty=False):
@@ -145,6 +145,7 @@ class Terrain:
             self.add_terrain_to_map(terrain, i, j)
     
     def add_roughness(self, terrain, difficulty=1):
+        '''增加粗糙度'''
         max_height = (self.cfg.height[1] - self.cfg.height[0]) * difficulty + self.cfg.height[0]
         height = random.uniform(self.cfg.height[0], max_height)
         terrain_utils.random_uniform_terrain(terrain, min_height=-height, max_height=height, step=0.005, downsampled_scale=self.cfg.downsampled_scale)
@@ -163,18 +164,27 @@ class Terrain:
         gap_size = 1. * difficulty
         pit_depth = 1. * difficulty
         if choice < self.proportions[0]:
-            idx = 0
+            idx = 0 # 光滑斜坡上坡
             if choice < self.proportions[0]/ 2:
-                idx = 1
+                idx = 1 # 光滑斜坡下坡
                 slope *= -1
-            terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
-            # self.add_roughness(terrain)
+            terrain_utils.pyramid_sloped_terrain(terrain, slope=1, platform_size=3.)
+            #self.add_roughness(terrain)
         elif choice < self.proportions[2]:
-            idx = 2
+            idx = 2 # # 粗糙斜坡上坡
             if choice<self.proportions[1]:
-                idx = 3
+                idx = 3 # 粗糙斜坡下坡
                 slope *= -1
-            terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
+            parkour_sloped_terrain(terrain, slope=0.5,#0.1461 + 0.2949 * difficulty, platform_len=2.5,   #训练时坡度为5～30度；仿真时坡度为30度
+                           platform_height=0., 
+                           num_sloped_goals=self.num_goals,
+                        #    x_range=[1.5, 2.4],
+                            x_range=[0.2, 0.4],
+                           y_range=[-0.15, 0.15],
+                           half_valid_width=[0.45, 0.5],
+                           pad_width=0.1,
+                           pad_height=0.5)
+            #terrain_utils.pyramid_sloped_terrain(terrain, slope=slope, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[4]:
             idx = 4
@@ -250,9 +260,9 @@ class Terrain:
             terrain_utils.pyramid_stairs_terrain(terrain, step_width=1., step_height=height, platform_size=3.)
             self.add_roughness(terrain)
         elif choice < self.proportions[14]:
-            x_range = [-0.1, 0.1+0.3*difficulty]  # offset to stone_len
+            x_range = [0.4,0.5]#[-0.1, 0.1+0.3*difficulty]  # offset to stone_len  0.04 0.46  训练时跳石间隔为0.04～0.46，仿真时为0.4~0.5
             y_range = [0.2, 0.3+0.1*difficulty]
-            stone_len = [0.9 - 0.3*difficulty, 1 - 0.2*difficulty]#2 * round((0.6) / 2.0, 1)
+            stone_len = [0.7,0.8]#[0.9 - 0.3*difficulty, 1 - 0.2*difficulty]#2 * round((0.6) / 2.0, 1)    #0.84～1.04 / 0.54～0.76，训练时0.54～1.04,仿真0.7~0.8
             incline_height = 0.25*difficulty
             last_incline_height = incline_height + 0.1 - 0.1*difficulty
             parkour_terrain(terrain,
@@ -272,10 +282,10 @@ class Terrain:
             idx = 16
             parkour_hurdle_terrain(terrain,
                                    num_stones=self.num_goals - 2,
-                                   stone_len=0.1+0.3*difficulty,
-                                   hurdle_height_range=[0.1+0.1*difficulty, 0.15+0.25*difficulty],
+                                   stone_len= 0.3,  #0.1+0.3*difficulty,    # 训练时0.04～0.46米 仿真：0.3米
+                                   hurdle_height_range=[0.35,0.45], #[0.1+0.1*difficulty, 0.15+0.25*difficulty],  # 训练时0.08～0.1 0.22～0.45 仿真：0.35～0.45米
                                    pad_height=0,
-                                   x_range=[1.2, 2.2],
+                                   x_range=[1.2,1.5],     #训练时[1.2, 2.2],   仿真：[1.2,1.5]
                                    y_range=self.cfg.y_range,
                                    half_valid_width=[0.4, 0.8],
                                    )
@@ -296,8 +306,8 @@ class Terrain:
         elif choice < self.proportions[17]:
             idx = 18
             parkour_step_terrain(terrain,
-                                   num_stones=self.num_goals - 2,
-                                   step_height=0.1 + 0.35*difficulty,
+                                   num_stones=self.num_goals - 2,   #0.03~0.52
+                                   step_height= 0.25,#0.1643 +0.0714*difficulty,   #训练时台阶高度为0.15～0.25米，台阶宽度为0.25～0.4米；仿真高度为0.25米，宽度为0.3米 #(-0.2, 1.2)
                                    x_range=[0.3,1.5],
                                    y_range=self.cfg.y_range,
                                    half_valid_width=[0.5, 1],
@@ -308,10 +318,10 @@ class Terrain:
             idx = 19
             parkour_gap_terrain(terrain,
                                 num_gaps=self.num_goals - 2,
-                                gap_size=0.1 + 0.7 * difficulty,
+                                gap_size=0.8, #0.1 + 0.7 * difficulty,    # -0.04～0.94    训练时间隙0～0.9米，仿真：0.8
                                 gap_depth=[0.2, 1],
                                 pad_height=0,
-                                x_range=[0.8, 1.5],
+                                x_range=[0.5, 0.8],
                                 y_range=self.cfg.y_range,
                                 half_valid_width=[0.6, 1.2],
                                 # flat=True
@@ -349,8 +359,12 @@ class Terrain:
             env_origin_z = np.max(terrain.height_field_raw[x1:x2, y1:y2])*terrain.vertical_scale
         self.env_origins[i, j] = [env_origin_x, env_origin_y, env_origin_z]
         self.terrain_type[i, j] = terrain.idx
-        self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width]
+        if terrain.idx < 4:
+            self.goals[i, j, :, :2] = terrain.sloped_goals + [i * self.env_length, j * self.env_width] #[i * 18, j * 4]
+        else:
+            self.goals[i, j, :, :2] = terrain.goals + [i * self.env_length, j * self.env_width] #[i * 18, j * 4]
         # self.env_slope_vec[i, j] = terrain.slope_vector
+        
 
 def gap_terrain(terrain, gap_size, platform_size=1.):
     gap_size = int(gap_size / terrain.horizontal_scale)
@@ -435,17 +449,17 @@ def parkour_terrain(terrain,
     terrain.height_field_raw[:] = -round(np.random.uniform(pit_depth[0], pit_depth[1]) / terrain.vertical_scale)
     
     mid_y = terrain.length // 2  # length is actually y width
-    stone_len = np.random.uniform(*stone_len)
-    stone_len = 2 * round(stone_len / 2.0, 1)
-    stone_len = round(stone_len / terrain.horizontal_scale)
-    dis_x_min = stone_len + round(x_range[0] / terrain.horizontal_scale)
-    dis_x_max = stone_len + round(x_range[1] / terrain.horizontal_scale)
+    stone_len = np.random.uniform(*stone_len)   ##0.54～1.04
+    stone_len = 2 * round(stone_len / 2.0, 1)   #0.6～1.0
+    stone_len = round(stone_len / terrain.horizontal_scale)     #12~20
+    dis_x_min = stone_len + round(x_range[0] / terrain.horizontal_scale)    #x_range=【0.04, 0.46】   dis_x_min = stone_len
+    dis_x_max = stone_len + round(x_range[1] / terrain.horizontal_scale)    #dis_x_max = stone_len + 9
     dis_y_min = round(y_range[0] / terrain.horizontal_scale)
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
     dis_z_min = round(z_range[0] / terrain.vertical_scale)
     dis_z_max = round(z_range[1] / terrain.vertical_scale)
 
-    platform_len = round(platform_len / terrain.horizontal_scale)
+    platform_len = round(platform_len / terrain.horizontal_scale)   #round(2.5 / 0.05)=50
     platform_height = round(platform_height / terrain.vertical_scale)
     terrain.height_field_raw[0:platform_len, :] = platform_height
 
@@ -455,7 +469,7 @@ def parkour_terrain(terrain,
     incline_height = round(incline_height / terrain.vertical_scale)
     last_incline_height = round(last_incline_height / terrain.vertical_scale)
 
-    dis_x = platform_len - np.random.randint(dis_x_min, dis_x_max) + stone_len // 2
+    dis_x = platform_len - np.random.randint(dis_x_min, dis_x_max) + stone_len // 2 #50-np.random.randint(stone_len, stone_len + 9) + stone_len // 2     dis_x=(33~44)
     goals[0] = [platform_len -  stone_len // 2, mid_y]
     left_right_flag = np.random.randint(0, 2)
     # dis_z = np.random.randint(dis_z_min, dis_z_max)
@@ -492,7 +506,7 @@ def parkour_terrain(terrain,
     terrain.height_field_raw[-pad_width:, :] = pad_height
     
 def parkour_gap_terrain(terrain,
-                           platform_len=2.5, 
+                           platform_len=1., 
                            platform_height=0., 
                            num_gaps=8,
                            gap_size=0.3,
@@ -515,7 +529,7 @@ def parkour_gap_terrain(terrain,
 
     platform_len = round(platform_len / terrain.horizontal_scale)
     platform_height = round(platform_height / terrain.vertical_scale)
-    gap_depth = -round(np.random.uniform(gap_depth[0], gap_depth[1]) / terrain.vertical_scale)
+    gap_depth = -200#-round(np.random.uniform(gap_depth[0], gap_depth[1]) / terrain.vertical_scale)
     
     # half_gap_width = round(np.random.uniform(0.6, 1.2) / terrain.horizontal_scale)
     half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
@@ -524,15 +538,15 @@ def parkour_gap_terrain(terrain,
     
     terrain.height_field_raw[0:platform_len, :] = platform_height
 
-    gap_size = round(gap_size / terrain.horizontal_scale)
-    dis_x_min = round(x_range[0] / terrain.horizontal_scale) + gap_size
-    dis_x_max = round(x_range[1] / terrain.horizontal_scale) + gap_size
+    gap_size = round(gap_size / terrain.horizontal_scale)   #gap_size = -0.04～0.94  0～18
+    dis_x_min = round(x_range[0] / terrain.horizontal_scale) + gap_size     # x_range=[0.5, 0.8]    dis_x_min=10～28
+    dis_x_max = round(x_range[1] / terrain.horizontal_scale) + gap_size     # dis_x_max = 16～34
 
     dis_x = platform_len
     goals[0] = [platform_len - 1, mid_y]
     last_dis_x = dis_x
     for i in range(num_gaps):
-        rand_x = np.random.randint(dis_x_min, dis_x_max)
+        rand_x = np.random.randint(dis_x_min, dis_x_max)    #10～34
         dis_x += rand_x
         rand_y = np.random.randint(dis_y_min, dis_y_max)
         if not flat:
@@ -550,7 +564,7 @@ def parkour_gap_terrain(terrain,
     # import ipdb; ipdb.set_trace()
     if final_dis_x > terrain.width:
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
-    goals[-1] = [final_dis_x, mid_y]
+    goals[-1] = [terrain.width, mid_y]
     
     terrain.goals = goals * terrain.horizontal_scale
     
@@ -580,21 +594,21 @@ def parkour_hurdle_terrain(terrain,
     
     mid_y = terrain.length // 2  # length is actually y width
 
-    dis_x_min = round(x_range[0] / terrain.horizontal_scale)
-    dis_x_max = round(x_range[1] / terrain.horizontal_scale)
+    dis_x_min = round(x_range[0] / terrain.horizontal_scale)        #x_range=[1.2, 2.2] 24
+    dis_x_max = round(x_range[1] / terrain.horizontal_scale)        #44
     dis_y_min = round(y_range[0] / terrain.horizontal_scale)
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
 
     # half_valid_width = round(np.random.uniform(y_range[1]+0.2, y_range[1]+1) / terrain.horizontal_scale)
     half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
-    hurdle_height_max = round(hurdle_height_range[1] / terrain.vertical_scale)
+    hurdle_height_max = round(hurdle_height_range[1] / terrain.vertical_scale)  # hurdle_height_range=0.08～0.1 0.22～0.45
     hurdle_height_min = round(hurdle_height_range[0] / terrain.vertical_scale)
 
     platform_len = round(platform_len / terrain.horizontal_scale)
     platform_height = round(platform_height / terrain.vertical_scale)
     terrain.height_field_raw[0:platform_len, :] = platform_height
 
-    stone_len = round(stone_len / terrain.horizontal_scale)
+    stone_len = round(stone_len / terrain.horizontal_scale)      # 0.04～0.46米   0～9
     # stone_width = round(stone_width / terrain.horizontal_scale)
     
     # incline_height = round(incline_height / terrain.vertical_scale)
@@ -604,8 +618,8 @@ def parkour_hurdle_terrain(terrain,
     goals[0] = [platform_len - 1, mid_y]
     last_dis_x = dis_x
     for i in range(num_stones):
-        rand_x = np.random.randint(dis_x_min, dis_x_max)
-        rand_y = np.random.randint(dis_y_min, dis_y_max)
+        rand_x = np.random.randint(dis_x_min, dis_x_max)        #24～44
+        rand_y = 0#np.random.randint(dis_y_min, dis_y_max)
         dis_x += rand_x
         if not flat:
             terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, ] = np.random.randint(hurdle_height_min, hurdle_height_max)
@@ -613,7 +627,7 @@ def parkour_hurdle_terrain(terrain,
             terrain.height_field_raw[dis_x-stone_len//2:dis_x+stone_len//2, mid_y+rand_y+half_valid_width:] = 0
         last_dis_x = dis_x
         goals[i+1] = [dis_x-rand_x//2, mid_y + rand_y]
-    final_dis_x = dis_x + np.random.randint(dis_x_min, dis_x_max)
+    final_dis_x = dis_x-rand_x//2  #dis_x + np.random.randint(dis_x_min, dis_x_max)
     # import ipdb; ipdb.set_trace()
     if final_dis_x > terrain.width:
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
@@ -631,11 +645,80 @@ def parkour_hurdle_terrain(terrain,
     terrain.height_field_raw[:, -pad_width:] = pad_height
     terrain.height_field_raw[:pad_width, :] = pad_height
     terrain.height_field_raw[-pad_width:, :] = pad_height
+    
+
+
+def parkour_sloped_terrain(terrain, slope=0.5, platform_len=2.5, 
+                           platform_height=0., 
+                           num_sloped_goals=16,
+                        #    x_range=[1.5, 2.4],
+                            x_range=[0.2, 0.4],
+                           y_range=[-0.15, 0.15],
+                           half_valid_width=[0.45, 0.5],
+                           pad_width=0.1,
+                           pad_height=0.5):
+    """
+    Generate a sloped terrain
+
+    Parameters:
+        terrain (SubTerrain): the terrain
+        slope (int): positive or negative slope
+    Returns:
+        terrain (SubTerrain): update terrain
+    """
+    goals = np.zeros((num_sloped_goals, 2))
+    mid_y = terrain.length // 2 
+    
+    half_valid_width = round(np.random.uniform(half_valid_width[0], half_valid_width[1]) / terrain.horizontal_scale)
+
+    platform_len = round(platform_len / terrain.horizontal_scale)
+    platform_height = round(platform_height / terrain.vertical_scale)
+
+    
+    dis_x = platform_len
+    last_dis_x = dis_x
+    goals[0] = [platform_len - round(1 / terrain.horizontal_scale), mid_y]
+    # 设置斜坡的起始位置和坡度
+    x = np.arange(platform_len, ((terrain.width-platform_len*3)//2)+platform_len)
+    y = np.arange(0, terrain.length)
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    xx = xx.reshape((terrain.width-platform_len*3)//2, 1)
+    max_height = int(slope * (terrain.horizontal_scale / terrain.vertical_scale) * (terrain.width-platform_len))
+    
+    terrain.height_field_raw[platform_len:((terrain.width-platform_len*3)//2)+platform_len, np.arange(terrain.length)] += (max_height * (xx-platform_len) / (terrain.width-platform_len)).astype(terrain.height_field_raw.dtype)    #上坡
+    
+    terrain.height_field_raw[((terrain.width-platform_len*3)//2)+platform_len:((terrain.width-platform_len*3)//2)+platform_len*2, :] = (max_height * ((terrain.width-platform_len*3)//2) / (terrain.width-platform_len))    #平台
+    
+    x = np.arange(((terrain.width-platform_len*3)//2)+platform_len*2, terrain.width-platform_len)
+    xx, yy = np.meshgrid(x, y, sparse=True)
+    xx = xx.reshape((terrain.width-platform_len*3)//2, 1)
+    max_height = int(-slope * (terrain.horizontal_scale / terrain.vertical_scale) * (terrain.width-platform_len))
+    terrain.height_field_raw[((terrain.width-platform_len*3)//2)+platform_len*2:terrain.width-platform_len, np.arange(terrain.length)] += (max_height * ((xx-2*(terrain.width-platform_len*3)//2)-platform_len*2) / (terrain.width-platform_len)).astype(terrain.height_field_raw.dtype)    #下坡
+    
+    rand_x = (terrain.width-platform_len*2) // (num_sloped_goals-2)
+    for i in range(1,num_sloped_goals-1,1):
+        if i < (num_sloped_goals-2) // 2:
+            slope_height=int(slope * (terrain.horizontal_scale / terrain.vertical_scale) * (rand_x*i))
+        elif i > (num_sloped_goals)//2:
+            slope_height=int(slope * (terrain.horizontal_scale / terrain.vertical_scale) * (rand_x*(num_sloped_goals*2-i)))
+        else:
+            slope_height=int(slope * (terrain.horizontal_scale / terrain.vertical_scale) * rand_x * (num_sloped_goals-2))
+        goals[i] = [dis_x+rand_x*i, mid_y]
+        #goals[i+1] = [dis_x+rand_x*i, mid_y]
+    goals[-1] = [terrain.width-platform_len//2, mid_y]
+    terrain.sloped_goals = goals * terrain.horizontal_scale    #terrain.goals为（20，2）
+    pad_width = int(pad_width // terrain.horizontal_scale)
+    pad_height = int(pad_height // terrain.vertical_scale)
+    terrain.height_field_raw[:, :pad_width] = pad_height
+    terrain.height_field_raw[:, -pad_width:] = pad_height
+    terrain.height_field_raw[:pad_width, :] = pad_height
+    terrain.height_field_raw[-pad_width:, :] = pad_height
+
 
 def parkour_step_terrain(terrain,
                            platform_len=2.5, 
                            platform_height=0., 
-                           num_stones=8,
+                           num_stones=14,
                         #    x_range=[1.5, 2.4],
                             x_range=[0.2, 0.4],
                            y_range=[-0.15, 0.15],
@@ -647,8 +730,8 @@ def parkour_step_terrain(terrain,
     # terrain.height_field_raw[:] = -200
     mid_y = terrain.length // 2  # length is actually y width
 
-    dis_x_min = round( (x_range[0] + step_height) / terrain.horizontal_scale)
-    dis_x_max = round( (x_range[1] + step_height) / terrain.horizontal_scale)
+    dis_x_min = round( (x_range[0] + step_height) / terrain.horizontal_scale)   #4
+    dis_x_max = round( (x_range[1] + step_height) / terrain.horizontal_scale)   #18
     dis_y_min = round(y_range[0] / terrain.horizontal_scale)
     dis_y_max = round(y_range[1] / terrain.horizontal_scale)
 
@@ -670,8 +753,8 @@ def parkour_step_terrain(terrain,
     stair_height = 0
     goals[0] = [platform_len - round(1 / terrain.horizontal_scale), mid_y]
     for i in range(num_stones):
-        rand_x = np.random.randint(dis_x_min, dis_x_max)
-        rand_y = np.random.randint(dis_y_min, dis_y_max)
+        rand_x = 6#np.random.randint(5, 8)    #指定每级台阶的宽度，假设每级台阶宽度0.25m，terrain.horizontal_scale=0.05，经过单位转换0.25/0.05=5
+        rand_y = 0#np.random.randint(dis_y_min, dis_y_max)  #使每级台阶在y方向上对齐
         if i < num_stones // 2:
             stair_height += step_height
         elif i > num_stones // 2:
@@ -689,7 +772,7 @@ def parkour_step_terrain(terrain,
         final_dis_x = terrain.width - 0.5 // terrain.horizontal_scale
     goals[-1] = [final_dis_x, mid_y]
     
-    terrain.goals = goals * terrain.horizontal_scale
+    terrain.goals = goals * terrain.horizontal_scale    #terrain.goals为（20，2）
     
     # terrain.height_field_raw[:, :max(mid_y-half_valid_width, 0)] = 0
     # terrain.height_field_raw[:, min(mid_y+half_valid_width, terrain.height_field_raw.shape[1]):] = 0

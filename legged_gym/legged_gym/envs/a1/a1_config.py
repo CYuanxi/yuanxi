@@ -80,7 +80,7 @@ class A1RoughCfg( LeggedRobotCfg ):
         decimation = 4
 
     class asset( LeggedRobotCfg.asset ):
-        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/a1.urdf'
+        file = '{LEGGED_GYM_ROOT_DIR}/resources/robots/a1/urdf/test820.urdf'
         foot_name = "foot"
         penalize_contacts_on = ["thigh", "calf"]
         terminate_after_contacts_on = ["base"]#, "thigh", "calf"]

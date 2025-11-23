@@ -171,7 +171,7 @@ class LeggedRobotCfg(BaseConfig):
         num_cols = 40 # number of terrain cols (types)
         
         terrain_dict = {"smooth slope": 0., 
-                        "rough slope up": 0.0,
+                        "rough slope up": 0.15,
                         "rough slope down": 0.0,
                         "rough stairs up": 0., 
                         "rough stairs down": 0., 
@@ -184,11 +184,11 @@ class LeggedRobotCfg(BaseConfig):
                         "platform": 0.,
                         "large stairs up": 0.,
                         "large stairs down": 0.,
-                        "parkour": 0.2,
-                        "parkour_hurdle": 0.2,
-                        "parkour_flat": 0.2,
-                        "parkour_step": 0.2,
-                        "parkour_gap": 0.2,
+                        "parkour": 0.15,
+                        "parkour_hurdle": 0.15,
+                        "parkour_flat": 0.0,
+                        "parkour_step": 0.15,
+                        "parkour_gap": 0.4,
                         "demo": 0.0,}
         terrain_proportions = list(terrain_dict.values())
         
@@ -196,7 +196,7 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 8
+        num_goals = 14   #目标点数-2等于台阶数
 
     class commands:
         curriculum = False
@@ -259,7 +259,7 @@ class LeggedRobotCfg(BaseConfig):
         default_dof_drive_mode = 3 # see GymDofDriveModeFlags (0 is none, 1 is pos tgt, 2 is vel tgt, 3 effort)
         self_collisions = 0 # 1 to disable, 0 to enable...bitwise filter
         replace_cylinder_with_capsule = True # replace collision cylinders with capsules, leads to faster/more stable simulation
-        flip_visual_attachments = True # Some .obj meshes must be flipped from y-up to z-up
+        flip_visual_attachments = False # Some .obj meshes must be flipped from y-up to z-up
         
         density = 0.001
         angular_damping = 0.
@@ -404,7 +404,7 @@ class LeggedRobotCfgPPO(BaseConfig):
         policy_class_name = 'ActorCritic'
         algorithm_class_name = 'PPO'
         num_steps_per_env = 24 # per iteration
-        max_iterations = 50000 # number of policy updates
+        max_iterations = 6000 # number of policy updates
 
         # logging
         save_interval = 100 # check for potential saves every this many iterations

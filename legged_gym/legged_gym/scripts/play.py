@@ -47,6 +47,15 @@ import matplotlib.pyplot as plt
 from time import time, sleep
 from legged_gym.utils import webviewer
 
+import torch
+
+if not torch.cuda.is_available():
+    print("CUDA is not available. Using CPU instead.")
+    # 在这里设置使用CPU的相关参数
+else:
+    print(f"CUDA is available. Using device {torch.cuda.current_device()}")
+
+
 def get_load_path(root, load_run=-1, checkpoint=-1, model_name_include="model"):
     if checkpoint==-1:
         models = [file for file in os.listdir(root) if model_name_include in file]
@@ -60,7 +69,7 @@ def play(args):
         web_viewer = webviewer.WebViewer()
     faulthandler.enable()
     exptid = args.exptid
-    log_pth = "../../logs/{}/".format(args.proj_name) + args.exptid
+    log_pth = "../../logs/{}/".format(args.proj_name) + exptid
 
     env_cfg, train_cfg = task_registry.get_cfgs(name=args.task)
     # override some parameters for testing
@@ -73,8 +82,8 @@ def play(args):
     env_cfg.terrain.num_cols = 5
     env_cfg.terrain.height = [0.02, 0.02]
     env_cfg.terrain.terrain_dict = {"smooth slope": 0., 
-                                    "rough slope up": 0.0,
-                                    "rough slope down": 0.0,
+                                    "rough slope up": 0.2,
+                                    "rough slope down": 0.,
                                     "rough stairs up": 0., 
                                     "rough stairs down": 0., 
                                     "discrete": 0., 
@@ -84,14 +93,14 @@ def play(args):
                                     "pit": 0.0,
                                     "wall": 0.0,
                                     "platform": 0.,
-                                    "large stairs up": 0.,
+                                    "large stairs up": 0.0,
                                     "large stairs down": 0.,
                                     "parkour": 0.2,
                                     "parkour_hurdle": 0.2,
-                                    "parkour_flat": 0.,
+                                    "parkour_flat": 0.0,
                                     "parkour_step": 0.2,
                                     "parkour_gap": 0.2, 
-                                    "demo": 0.2}
+                                    "demo": 0.0}
     
     env_cfg.terrain.terrain_proportions = list(env_cfg.terrain.terrain_dict.values())
     env_cfg.terrain.curriculum = False
@@ -178,6 +187,7 @@ def play(args):
         
 
 if __name__ == '__main__':
+    
     EXPORT_POLICY = False
     RECORD_FRAMES = False
     MOVE_CAMERA = False

@@ -92,7 +92,7 @@ class LeggedRobotCfg(BaseConfig):
         camera_terrain_num_rows = 10
         camera_terrain_num_cols = 20
 
-        position = [0.27, 0, 0.03]  # front camera
+        position = [0.35,0,0.03]#[0.27, 0, 0.03]  # front camera 设置深度相机相对于机器狗的位置
         angle = [-5, 5]  # positive pitch down
 
         update_interval = 5  # 5 works without retraining, 8 worse
@@ -171,7 +171,7 @@ class LeggedRobotCfg(BaseConfig):
         num_cols = 40 # number of terrain cols (types)
         
         terrain_dict = {"smooth slope": 0., 
-                        "rough slope up": 0.15,
+                        "rough slope up": 0.5,
                         "rough slope down": 0.0,
                         "rough stairs up": 0., 
                         "rough stairs down": 0., 
@@ -184,11 +184,11 @@ class LeggedRobotCfg(BaseConfig):
                         "platform": 0.,
                         "large stairs up": 0.,
                         "large stairs down": 0.,
-                        "parkour": 0.15,
-                        "parkour_hurdle": 0.15,
+                        "parkour": 0.,
+                        "parkour_hurdle": 0.,
                         "parkour_flat": 0.0,
-                        "parkour_step": 0.15,
-                        "parkour_gap": 0.4,
+                        "parkour_step": 0.5,
+                        "parkour_gap": 0.,
                         "demo": 0.0,}
         terrain_proportions = list(terrain_dict.values())
         
@@ -196,7 +196,7 @@ class LeggedRobotCfg(BaseConfig):
         slope_treshold = 1.5# slopes above this threshold will be corrected to vertical surfaces
         origin_zero_z = True
 
-        num_goals = 14   #目标点数-2等于台阶数
+        num_goals = 8   #目标点数-2等于台阶数
 
     class commands:
         curriculum = False

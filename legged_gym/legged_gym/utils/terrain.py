@@ -730,13 +730,13 @@ def parkour_sloped_terrain(terrain, slope=0.5, platform_len=2.5,
     rand_x = 20    #x方向每隔1m放置一个目标点
     rand_y = 0
     max_height = int(slope * (terrain.horizontal_scale / terrain.vertical_scale) * (rand_x * ((num_goals - 4)//2)))
-    heights = np.tile(np.linspace(start=0, stop=max_height, num=rand_x * ((num_goals - 4)//2)), (rand_x * ((num_goals - 4)//2),1))
+    heights = np.tile(np.linspace(start=0, stop=max_height, num=rand_x * ((num_goals - 4)//2)), (rand_x * ((num_goals - 4)//2)*2,1))
     heights = np.transpose(heights)
     terrain.height_field_raw[platform_len:rand_x * ((num_goals - 4)//2) + platform_len,] = heights.astype(int)
 
     terrain.height_field_raw[rand_x * ((num_goals - 4)//2) + platform_len:rand_x * ((num_goals - 4)//2 + 2) + platform_len,] = max_height
 
-    heights = np.tile(np.linspace(start=max_height, stop=0, num=rand_x * ((num_goals - 4)//2)), (rand_x * ((num_goals - 4)//2), 1))
+    heights = np.tile(np.linspace(start=max_height, stop=0, num=rand_x * ((num_goals - 4)//2)), (rand_x * ((num_goals - 4)//2)*2, 1))
     heights = np.transpose(heights)
     terrain.height_field_raw[rand_x * ((num_goals - 4)//2 + 2) + platform_len : rand_x * (num_goals - 2) + platform_len,] = heights.astype(int)
     terrain.height_field_raw[:, :mid_y + rand_y - half_valid_width] = 0

@@ -388,21 +388,61 @@ class LeggedRobot(BaseTask):
         if self.global_counter % 5 == 0:
             self.delta_yaw = self.target_yaw - self.yaw
             self.delta_next_yaw = self.next_target_yaw - self.yaw
-        obs_buf = torch.cat((#skill_vector, 
-                            self.base_ang_vel  * self.obs_scales.ang_vel,   #[1,3]
-                            imu_obs,    #[1,2]
-                            0*self.delta_yaw[:, None], 
-                            self.delta_yaw[:, None],
-                            self.delta_next_yaw[:, None],
-                            0*self.commands[:, 0:2], 
-                            self.commands[:, 0:1],  #[1,1]
-                            (self.env_class != 17).float()[:, None], 
-                            (self.env_class == 17).float()[:, None],
-                            self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),
-                            self.reindex(self.dof_vel * self.obs_scales.dof_vel),
-                            self.reindex(self.action_history_buf[:, -1]),
-                            self.reindex_feet(self.contact_filt.float()-0.5),
-                            ),dim=-1)
+
+        # print(f"self.base_ang_vel.shape={self.base_ang_vel.shape}")
+        # print(f"imu_obs.shape={imu_obs.shape}")
+        # print(f"self.delta_yaw[:, None].shape={self.delta_yaw[:, None].shape}")
+        # print(f"self.delta_next_yaw[:, None].shape={self.delta_next_yaw[:, None].shape}")
+        # print(f"self.commands[:, 0:2].shape={self.commands[:, 0:2].shape}")
+        # print(f"self.commands[:, 0:1].shape={self.commands[:, 0:1].shape}")
+        # print(f"(self.env_class != 17).float()[:, None].shape={(self.env_class != 17).float()[:, None].shape}")
+        # print(f"(self.env_class == 17).float()[:, None].shape={(self.env_class == 17).float()[:, None].shape}")
+        # print(f"self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos).shape={self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos).shape}")
+        # print(f"self.reindex(self.dof_vel * self.obs_scales.dof_vel).shape={self.reindex(self.dof_vel * self.obs_scales.dof_vel).shape}")
+        # print(f"self.reindex(self.action_history_buf[:, -1]).shape={self.reindex(self.action_history_buf[:, -1]).shape}")
+        # print(f"self.reindex_feet(self.contact_filt.float()-0.5).shape={self.reindex_feet(self.contact_filt.float()-0.5).shape}")
+        obs_buf = torch.cat((#skill_vector,
+                            self.base_ang_vel  * self.obs_scales.ang_vel,   #[16,3]  基础角速度，乘以一个缩放因子 self.obs_scales.ang_vel
+                            imu_obs,    #[16,2]  imu的观测数据
+                            0*self.delta_yaw[:, None],      #[16,1]  这是一个零向量，表示一个占位符
+                            self.delta_yaw[:, None],        #[16,1]  偏航角的变化量，表示当前偏航角与目标偏航角之间的差值
+                            self.delta_next_yaw[:, None],   #[16,1]  下一个目标偏航角与当前偏航角之间的差值
+                            0*self.commands[:, 0:2],        #[16,2]  这是一个零向量，用作占位符
+                            self.commands[:, 0:1],  #[16,1]  self.commands 是控制命令数据，self.commands[:, 0:1] 提取了控制命令的第一个维度
+                            (self.env_class != 17).float()[:, None],    #[16,1]  这表示当前环境类别是否为 17，如果不是 17，结果为 1，否则为 0
+                            (self.env_class == 17).float()[:, None],    #[16,1]  类似上面一项，判断环境类别是否为 17，如果是 17，结果为 1，否则为 0
+                            self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos),      #[16,num_dofs]   num_dofs=12
+                                # 计算当前关节位置与默认位置之间的差异，乘以缩放因子，表示机器人的关节位置
+                            self.reindex(self.dof_vel * self.obs_scales.dof_vel),        #[16,num_dofs]  计算关节的速度，乘以缩放因子，表示机器人的关节速度
+                            self.reindex(self.action_history_buf[:, -1]),       #[16, num_actions]   num_actions=12  机器人动作历史的最后一个动作
+                            self.reindex_feet(self.contact_filt.float()-0.5),   #[16, 4] 表示机器人腿部接触状态的张量，其中4代表机器人的四个足部
+                            ),dim=-1)   #[16, 53]
+
+
+        # obs_buf.shape = torch.Size([16, 53])
+        # self.base_ang_vel.shape = torch.Size([16, 3])
+        # imu_obs.shape = torch.Size([16, 2])
+        # self.delta_yaw[:, None].shape = torch.Size([16, 1])
+        # self.delta_next_yaw[:, None].shape = torch.Size([16, 1])
+        # self.commands[:, 0:2].shape = torch.Size([16, 2])
+        # self.commands[:, 0:1].shape = torch.Size([16, 1])
+        # (self.env_class != 17).float()[:, None].shape = torch.Size([16, 1])
+        # (self.env_class == 17).float()[:, None].shape = torch.Size([16, 1])
+        # self.reindex((self.dof_pos - self.default_dof_pos_all) * self.obs_scales.dof_pos).shape = torch.Size([16, 12])
+        # self.reindex(self.dof_vel * self.obs_scales.dof_vel).shape = torch.Size([16, 12])
+        # self.reindex(self.action_history_buf[:, -1]).shape = torch.Size([16, 12])
+        # self.reindex_feet(self.contact_filt.float() - 0.5).shape = torch.Size([16, 4])
+
+        # self.base_lin_vel.shape = torch.Size([16, 3])
+        # priv_explicit.shape = torch.Size([16, 9])
+        # self.mass_params_tensor.shape = torch.Size([16, 4])
+        # self.friction_coeffs_tensor.shape = torch.Size([16, 1])
+        # self.motor_strength[0].shape = torch.Size([16, 12])
+        # self.motor_strength[1].shape = torch.Size([16, 12])
+        # self.obs_buf.shape = torch.Size([16, 753])
+        # self.cfg.terrain.measure_heights = True
+        # obs_buf.shape = torch.Size([16, 53])
+
         priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
                                    0 * self.base_lin_vel,
                                    0 * self.base_lin_vel), dim=-1)
@@ -423,7 +463,7 @@ class LeggedRobot(BaseTask):
             torch.stack([obs_buf] * self.cfg.env.history_len, dim=1),
             torch.cat([
                 self.obs_history_buf[:, 1:],
-                obs_buf.unsqueeze(1)
+                obs_buf.unsqueeze(1)    #[16,1,53]
             ], dim=1)
         )
 
@@ -918,6 +958,7 @@ class LeggedRobot(BaseTask):
 
         robot_asset = self.gym.load_asset(self.sim, asset_root, asset_file, asset_options)
         self.num_dof = self.gym.get_asset_dof_count(robot_asset)
+        print(f"num_dof = {self.num_dof}")
         self.num_bodies = self.gym.get_asset_rigid_body_count(robot_asset)
         dof_props_asset = self.gym.get_asset_dof_properties(robot_asset)
         rigid_shape_props_asset = self.gym.get_asset_rigid_shape_properties(robot_asset)

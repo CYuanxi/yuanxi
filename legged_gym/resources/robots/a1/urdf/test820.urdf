@@ -4,6 +4,13 @@
 <!-- |    EDITING THIS FILE BY HAND IS NOT RECOMMENDED                                 | -->
 <!-- =================================================================================== -->
 <robot name="aliengo" xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <mujoco>
+  <compiler
+    meshdir="../meshes"
+    balanceinertia="true"
+    discardvisual="false" />
+  </mujoco>
+
   <!-- Define parameters -->
   <!-- bodyLength + hipdx should be equal to front to back hip distance -->
   <!-- dy +  dPodAxisToEdge + upperLegWidth should be equal to the center to toe distance along y axis-->
@@ -28,6 +35,8 @@
   <!--calf_joint小腿腿杆偏移距离 基于thigh_joint坐标系  一般为Z方向 等于大腿腿长upperLegLength -->
   <!--  足端偏移距离 基于FL_calf_joint坐标系  一般为负 Z方向 与小腿杆等长 -->
   <!-- Define materials -->
+
+  
   <material name="darkgray">
     <color rgba="0.1 0.1 0.1 1.0"/>
   </material>

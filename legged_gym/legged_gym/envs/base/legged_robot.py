@@ -388,7 +388,6 @@ class LeggedRobot(BaseTask):
         if self.global_counter % 5 == 0:
             self.delta_yaw = self.target_yaw - self.yaw
             self.delta_next_yaw = self.next_target_yaw - self.yaw
-
         # print(f"self.base_ang_vel.shape={self.base_ang_vel.shape}")
         # print(f"imu_obs.shape={imu_obs.shape}")
         # print(f"self.delta_yaw[:, None].shape={self.delta_yaw[:, None].shape}")
@@ -401,6 +400,8 @@ class LeggedRobot(BaseTask):
         # print(f"self.reindex(self.dof_vel * self.obs_scales.dof_vel).shape={self.reindex(self.dof_vel * self.obs_scales.dof_vel).shape}")
         # print(f"self.reindex(self.action_history_buf[:, -1]).shape={self.reindex(self.action_history_buf[:, -1]).shape}")
         # print(f"self.reindex_feet(self.contact_filt.float()-0.5).shape={self.reindex_feet(self.contact_filt.float()-0.5).shape}")
+
+        #obs_buf是一个临时变量，它用于计算并拼接当前时间步的观测数据，最终将其赋值给self.obs_buf
         obs_buf = torch.cat((#skill_vector,
                             self.base_ang_vel  * self.obs_scales.ang_vel,   #[16,3]  基础角速度，乘以一个缩放因子 self.obs_scales.ang_vel
                             imu_obs,    #[16,2]  imu的观测数据
@@ -417,8 +418,6 @@ class LeggedRobot(BaseTask):
                             self.reindex(self.action_history_buf[:, -1]),       #[16, num_actions]   num_actions=12  机器人动作历史的最后一个动作
                             self.reindex_feet(self.contact_filt.float()-0.5),   #[16, 4] 表示机器人腿部接触状态的张量，其中4代表机器人的四个足部
                             ),dim=-1)   #[16, 53]
-
-
         # obs_buf.shape = torch.Size([16, 53])
         # self.base_ang_vel.shape = torch.Size([16, 3])
         # imu_obs.shape = torch.Size([16, 2])
@@ -435,29 +434,46 @@ class LeggedRobot(BaseTask):
 
         # self.base_lin_vel.shape = torch.Size([16, 3])
         # priv_explicit.shape = torch.Size([16, 9])
+
         # self.mass_params_tensor.shape = torch.Size([16, 4])
         # self.friction_coeffs_tensor.shape = torch.Size([16, 1])
         # self.motor_strength[0].shape = torch.Size([16, 12])
         # self.motor_strength[1].shape = torch.Size([16, 12])
-        # self.obs_buf.shape = torch.Size([16, 753])
-        # self.cfg.terrain.measure_heights = True
-        # obs_buf.shape = torch.Size([16, 53])
+        # priv_latent.shape = torch.Size([16, 29])
 
-        priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel,
-                                   0 * self.base_lin_vel,
+        # self.cfg.terrain.measure_heights = True
+        # priv_latent.shape = torch.Size([16, 29])
+        # heights.shape = torch.Size([16, 132])
+        # self.obs_history_buf.view(self.num_envs, -1).shape = torch.Size([16, 530])
+        # self.obs_buf.shape = torch.Size([16, 753])
+        # obs_buf.shape = torch.Size([16, 53])
+        priv_explicit = torch.cat((self.base_lin_vel * self.obs_scales.lin_vel, #[16, 3] self.base_lin_vel表示机器人在3个空间维度（x, y, z）上的线速度，self.obs_scales.lin_vel是缩放因子，表示如何调整线性速度的量纲
+                                   0 * self.base_lin_vel,       # [16, 3] 零列向量，占位符
                                    0 * self.base_lin_vel), dim=-1)
+        # priv_explicit.shape = torch.Size([16, 9])
+
         priv_latent = torch.cat((
-            self.mass_params_tensor,
-            self.friction_coeffs_tensor,
-            self.motor_strength[0] - 1, 
-            self.motor_strength[1] - 1
+            self.mass_params_tensor,    #[16, 4]    表示机器人的质量参数（例如，质量和质心位置）
+            self.friction_coeffs_tensor,    #[16, 1]    表示机器人的摩擦系数
+            self.motor_strength[0] - 1,     #[16, 12]   电机的强度值
+            self.motor_strength[1] - 1      #[16, 12]
         ), dim=-1)
-        if self.cfg.terrain.measure_heights:
-            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1, 1.)
-            self.obs_buf = torch.cat([obs_buf, heights, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
+        # priv_latent.shape = torch.Size([16, 29])
+
+        if self.cfg.terrain.measure_heights:    # self.cfg.terrain.measure_heights = True   检查是否启用地形的高度测量功能，如果启用，执行高度相关的计算
+            heights = torch.clip(self.root_states[:, 2].unsqueeze(1) - 0.3 - self.measured_heights, -1, 1.)     #[16, 132]  计算机器人的相对高度，并将其限制在[-1, 1]范围内，得到heights
+            # self.obs_buf.shape = torch.Size([16, 753])，是最终的、全局的观测数据存储，用于代表当前机器人的状态信息，供后续的控制或决策使用
+            self.obs_buf = torch.cat([obs_buf, heights, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)  #53+132+9+29+530=753
+            # self.obs_history_buf.view(self.num_envs, -1).shape = torch.Size([16, 530])
         else:
             self.obs_buf = torch.cat([obs_buf, priv_explicit, priv_latent, self.obs_history_buf.view(self.num_envs, -1)], dim=-1)
-        obs_buf[:, 6:8] = 0  # mask yaw in proprioceptive history
+        # print(f"priv_latent.shape={priv_latent.shape}")
+        # print(f"heights.shape={heights.shape}")
+        # print(f"self.obs_history_buf.view(self.num_envs, -1).shape={self.obs_history_buf.view(self.num_envs, -1).shape}")
+        obs_buf[:, 6:8] = 0  # mask yaw in proprioceptive history 对obs_buf中偏航角（yaw）的屏蔽
+        # 更新历史观测缓存self.obs_history_buf，每次调用时，self.obs_history_buf的形状会被更新为[batch_size, history_len, obs_dim]，其中history_len是保存的历史观测步数，obs_dim是每个观测数据的维度
+        # 回合开始时，self.obs_history_buf会被填充为相同的观测数据，表示没有历史数据
+        # 回合进行时，self.obs_history_buf会逐步更新，保留过去history_len步的观测数据
         self.obs_history_buf = torch.where(
             (self.episode_length_buf <= 1)[:, None, None], 
             torch.stack([obs_buf] * self.cfg.env.history_len, dim=1),
@@ -466,7 +482,9 @@ class LeggedRobot(BaseTask):
                 obs_buf.unsqueeze(1)    #[16,1,53]
             ], dim=1)
         )
-
+        # 更新接触历史缓冲区self.contact_buf，逻辑与更新观测历史类似：
+        # 回合开始时：self.contact_buf会被初始化为与当前接触状态相同的数据，长度为contact_buf_len。
+        # 回合进行时：将接触状态self.contact_filt添加到历史接触缓存中，更新历史数据
         self.contact_buf = torch.where(
             (self.episode_length_buf <= 1)[:, None, None], 
             torch.stack([self.contact_filt.float()] * self.cfg.env.contact_buf_len, dim=1),

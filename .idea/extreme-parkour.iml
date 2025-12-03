@@ -5,7 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/legged_gym" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/rsl_rl" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="parkour" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="gym" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
   <component name="PyDocumentationSettings">
